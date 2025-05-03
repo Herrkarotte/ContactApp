@@ -15,7 +15,7 @@ class ContactRepository @Inject constructor(private val context: Context) {
         contentResolver.query(
             ContactsContract.Contacts.CONTENT_URI,
             null,
-            null,
+            "${ContactsContract.Contacts.IN_VISIBLE_GROUP} = 1",
             null,
             "${ContactsContract.Contacts.DISPLAY_NAME} ASC"
         )?.use { cursor ->
@@ -47,7 +47,9 @@ class ContactRepository @Inject constructor(private val context: Context) {
         return contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             null,
-            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}= ? AND " + "${ContactsContract.CommonDataKinds.Phone.TYPE} = ?",
+            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}= ? AND " +
+                    "${ContactsContract.CommonDataKinds.Phone.TYPE} = ? AND " +
+                    "${ContactsContract.CommonDataKinds.Phone.NUMBER} IS NOT NULL",
             arrayOf(contactId, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE.toString()),
             null
         )?.use { cursor ->
