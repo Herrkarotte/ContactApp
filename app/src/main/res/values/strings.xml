@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">ContactApp</string>
+    <string name="snackBarMessageForContactPermission">Permission to contacts is permanently denied.Please enable this in the application settings, open them? </string>
+    <string name="snackBarMessageForCallPermission">Permission to make calls is permanently denied. Please enable this in the application settings, open them? </string>
+
+    <string name="shortSnackBarMessageForCallPermission">Permission to make calls denied.</string>
+    <string name="shortSnackBarMessageForContactPermission">Permission to contacts denied.</string>
+    <string name="snackBarActionLabel">Open settings</string>
+    <string name="errorCall">Cannot make a call</string>
+    <string name="loadingError">Error loading contacts</string>
+    <string name="NoNameText">No name</string>
+    <string name="NoNumberText">No number</string>
 </resources>

@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -46,14 +45,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.contactapp.R
 import com.example.contactapp.data.Contact
 import com.example.contactapp.ui.theme.ContactAppTheme
 import com.example.contactapp.viewmodel.MainViewModel
@@ -85,9 +86,16 @@ fun ContactApp(
     val contacts by viewModel.contacts.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+
+    val snackBarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    val snackBarContactPermissionMessage =
+        stringResource(R.string.snackBarMessageForContactPermission)
+    val actionLabel = stringResource(R.string.snackBarActionLabel)
+    val shortSnackBarContactPermissionMessage =
+        stringResource(R.string.shortSnackBarMessageForContactPermission)
 
     val contactPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -97,11 +105,11 @@ fun ContactApp(
                 )
                 scope.launch {
                     if (!shouldShow) {
-                        val result = snackbarHostState.showSnackbar(
-                            "Permission to make calls is permanently denied. Please enable this in the application settings, open them?",
+                        val result = snackBarHostState.showSnackbar(
+                            snackBarContactPermissionMessage,
                             withDismissAction = true,
                             duration = SnackbarDuration.Long,
-                            actionLabel = "Open Settings"
+                            actionLabel = actionLabel
                         )
                         if (result == SnackbarResult.ActionPerformed) {
                             val intent =
@@ -111,8 +119,8 @@ fun ContactApp(
                             context.startActivity(intent)
                         }
                     } else {
-                        snackbarHostState.showSnackbar(
-                            "Contact permission denied", duration = SnackbarDuration.Short
+                        snackBarHostState.showSnackbar(
+                            shortSnackBarContactPermissionMessage, duration = SnackbarDuration.Short
                         )
                     }
                 }
@@ -123,6 +131,11 @@ fun ContactApp(
     LaunchedEffect(Unit) {
         contactPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
     }
+
+    val snackBarCallPermissionMessage = stringResource(R.string.snackBarMessageForCallPermission)
+    val shortSnackBarCallPermissionMessage =
+        stringResource(R.string.shortSnackBarMessageForCallPermission)
+
     val callPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (!isGranted) {
@@ -131,11 +144,11 @@ fun ContactApp(
                 )
                 scope.launch {
                     if (!shouldShow) {
-                        val result = snackbarHostState.showSnackbar(
-                            "Permission to make calls is permanently denied. Please enable this in the application settings, open them?",
+                        val result = snackBarHostState.showSnackbar(
+                            snackBarCallPermissionMessage,
                             withDismissAction = true,
                             duration = SnackbarDuration.Long,
-                            actionLabel = "Open settings"
+                            actionLabel = actionLabel
                         )
                         if (result == SnackbarResult.ActionPerformed) {
                             val intent =
@@ -145,20 +158,30 @@ fun ContactApp(
                             context.startActivity(intent)
                         }
                     } else {
-                        snackbarHostState.showSnackbar(
-                            "Call permission denied", duration = SnackbarDuration.Short
+                        snackBarHostState.showSnackbar(
+                            shortSnackBarCallPermissionMessage, duration = SnackbarDuration.Short
                         )
                     }
                 }
             }
         }
+
+    val snackBarCallErrorMessage = stringResource(R.string.errorCall)
+
     val onContactClick = onContactClick@{ phone: String ->
         if (phone.isBlank()) return@onContactClick
         if (ContextCompat.checkSelfPermission(
                 context, Manifest.permission.CALL_PHONE
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            makeCall(context, phone)
+            val isSuccess = makeCall(context, phone)
+            if (!isSuccess) {
+                scope.launch {
+                    snackBarHostState.showSnackbar(
+                        snackBarCallErrorMessage, duration = SnackbarDuration.Short
+                    )
+                }
+            }
         } else {
             callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
         }
@@ -166,31 +189,36 @@ fun ContactApp(
     Box(modifier.fillMaxSize()) {
         when {
             isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-            error != null -> ErrorMessage(error!!)
+            error != null -> error?.let { ErrorMessage(it) }
             else -> GroupedContactList(contacts, modifier, onClick = onContactClick)
         }
         SnackbarHost(
-            hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter)
+            hostState = snackBarHostState, modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
 
-private fun makeCall(context: Context, phone: String) {
-    try {
+private fun makeCall(context: Context, phone: String): Boolean {
+    return try {
         val intent = Intent(Intent.ACTION_CALL).apply {
-            data = Uri.parse("tel:${phone.filter { it.isDigit() || it == '+' }}")
+            data = "tel:${phone.filter { it.isDigit() || it == '+' }}".toUri()
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
+        true
     } catch (e: Exception) {
-        Toast.makeText(context, "Cannot make a call", Toast.LENGTH_SHORT).show()
+        false
     }
 }
 
 @Composable
 fun GroupedContactList(contacts: List<Contact>, modifier: Modifier, onClick: (String) -> Unit) {
+    val defaultInitial = stringResource(R.string.NoNameText).first().uppercaseChar()
     val groupedContacts = remember(contacts) {
-        contacts.groupBy { it.name.first().uppercaseChar() }.toSortedMap()
+        contacts.groupBy { contact ->
+            contact.name?.firstOrNull()?.uppercaseChar() ?: defaultInitial
+
+        }.toSortedMap()
     }
 
     LazyColumn(modifier = modifier) {
@@ -199,7 +227,7 @@ fun GroupedContactList(contacts: List<Contact>, modifier: Modifier, onClick: (St
                 InitialHeader(initial.toString())
             }
             items(contactsInGroup, key = { it.id }) { contact ->
-                ContactCard(contact, { onClick(contact.phone) })
+                ContactCard(contact) { contact.phone?.let { phone -> onClick(phone) } }
             }
         }
     }
@@ -240,17 +268,18 @@ fun ContactCard(contact: Contact, onClick: () -> Unit) {
 
             ) {
                 Text(
-                    text = contact.name.take(1).uppercase(),
+                    text = (contact.name ?: stringResource(R.string.NoNameText))
+                        .take(1).uppercase(),
                     fontWeight = FontWeight.Bold
                 )
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = contact.name, fontSize = 18.sp
+                    text = contact.name ?: stringResource(R.string.NoNameText), fontSize = 18.sp
                 )
                 Text(
-                    text = contact.phone, fontSize = 18.sp
+                    text = contact.phone ?: stringResource(R.string.NoNumberText), fontSize = 18.sp
                 )
             }
         }
@@ -258,6 +287,6 @@ fun ContactCard(contact: Contact, onClick: () -> Unit) {
 }
 
 @Composable
-fun ErrorMessage(error: String) {
-    Text(text = "Ошибка $error")
+fun ErrorMessage(error: Int) {
+    Text(text = stringResource(error))
 }

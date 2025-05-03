@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ContactApp</string>
+    <string name="snackBarMessageForContactPermission">В доступе к контактам отказано навсегда. Пожалуйста, предоставьте его в настройках, открыть их? </string>
+    <string name="snackBarMessageForCallPermission">В доступе к совершению вызовов отказано навсегда. Пожалуйста, предоставьте его в настройках, открыть их? </string>
+
+    <string name="shortSnackBarMessageForCallPermission">Доступ к совершению вызовов запрещен.</string>
+    <string name="shortSnackBarMessageForContactPermission">Доступ к контактам запрещен.</string>
+    <string name="snackBarActionLabel">Открыть настройки</string>
+    <string name="errorCall">Не удалось совершить вызов</string>
+    <string name="loadingError">Ошибка загрузки контактов</string>
+    <string name="NoNameText">Безымянный</string>
+    <string name="NoNumberText">Номер отсутствует</string>
+</resources>

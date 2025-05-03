@@ -29,11 +29,11 @@ class ContactRepository @Inject constructor(private val context: Context) {
             }
             while (cursor.moveToNext()) {
                 val id = cursor.getString(idIndex)
-                val name = cursor.getString(nameIndex) ?: "Без имени"
+                val name = cursor.getString(nameIndex)
                 val phone = if (cursor.getInt(phoneIndex) > 0) {
-                    getFirstPhone(contentResolver, id) ?: ""
+                    getFirstPhone(contentResolver, id)
                 } else {
-                    ""
+                    null
                 }
                 contactsList.add(Contact(id, name, phone))
             }
