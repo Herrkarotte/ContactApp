@@ -2,7 +2,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/Herrkarotte/ContactApp/main)](https://github.com/Herrkarotte/ContactApp/commits/main)
 ## Приложение позволяет:
 - Отображать данные о контактах сохраненных на устройстве в виде списка(UserStory1)![Status](https://img.shields.io/badge/Status-✅_Готово-brightgreen).
-- Совершать звонок по выбранному контакту(UserStory2)![Status](https://img.shields.io/badge/Status-🚧_В_работе-orange).
+- Совершать звонок по выбранному контакту(UserStory2)![Status](https://img.shields.io/badge/Status-✅_Готово-brightgreen).
   
 ## Технологии.
 ### Архитектура.

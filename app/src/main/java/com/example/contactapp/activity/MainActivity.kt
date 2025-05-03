@@ -1,11 +1,18 @@
 package com.example.contactapp.activity
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,10 +33,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.contactapp.data.Contact
 import com.example.contactapp.ui.theme.ContactAppTheme
@@ -47,7 +57,7 @@ class MainActivity : ComponentActivity() {
             ContactAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     ContactApp(
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier.padding(innerPadding),
                     )
                 }
             }
@@ -64,32 +74,67 @@ fun ContactApp(
     val error by viewModel.error.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val permissionLauncher =
+    val context = LocalContext.current
+
+    val contactPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                viewModel.loadContacts()
-            } else {
+            if (!isGranted) {
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        "Permission denied", duration = SnackbarDuration.Short
+                        "Contact permission denied", duration = SnackbarDuration.Short
+                    )
+                }
+            } else {
+                viewModel.loadContacts()
+            }
+        }
+    LaunchedEffect(Unit) {
+        contactPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+    }
+    val callPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (!isGranted) {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        "Call permission denied", duration = SnackbarDuration.Short
                     )
                 }
             }
         }
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+    val onContactClick = onContactClick@{ phone: String ->
+        if (phone.isBlank()) return@onContactClick
+        if (ContextCompat.checkSelfPermission(
+                context, Manifest.permission.CALL_PHONE
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            makeCall(context, phone)
+        } else {
+            callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+        }
     }
     Box(modifier.fillMaxSize()) {
         when {
-            isLoading -> CircularProgressIndicator()
+            isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
             error != null -> ErrorMessage(error!!)
-            else -> GroupedContactList(contacts, modifier)
+            else -> GroupedContactList(contacts, modifier, onClick = onContactClick)
         }
     }
 }
 
+private fun makeCall(context: Context, phone: String) {
+    try {
+        val intent = Intent(Intent.ACTION_CALL).apply {
+            data = Uri.parse("tel:${phone.filter { it.isDigit() || it == '+' }}")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Cannot make a call", Toast.LENGTH_SHORT).show()
+    }
+}
+
 @Composable
-fun GroupedContactList(contacts: List<Contact>, modifier: Modifier) {
+fun GroupedContactList(contacts: List<Contact>, modifier: Modifier, onClick: (String) -> Unit) {
     val groupedContacts = remember(contacts) {
         contacts.groupBy { it.name.first().uppercaseChar() }.toSortedMap()
     }
@@ -100,7 +145,7 @@ fun GroupedContactList(contacts: List<Contact>, modifier: Modifier) {
                 InitialHeader(initial.toString())
             }
             items(contactsInGroup, key = { it.id }) { contact ->
-                ContactCard(contact)
+                ContactCard(contact, { onClick(contact.phone) })
             }
         }
     }
@@ -120,12 +165,13 @@ fun InitialHeader(initial: String) {
 }
 
 @Composable
-fun ContactCard(contact: Contact) {
+fun ContactCard(contact: Contact, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(10.dp)
             .shadow(10.dp, shape = RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(

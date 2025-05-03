@@ -21,7 +21,6 @@ class MainViewModel @Inject constructor(private val repository: ContactRepositor
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-
     fun loadContacts() {
         viewModelScope.launch {
             _isLoading.value = true
