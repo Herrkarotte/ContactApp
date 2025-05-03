@@ -1,11 +1,13 @@
 package com.example.contactapp.activity
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,7 +27,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +43,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.contactapp.data.Contact
@@ -79,10 +84,29 @@ fun ContactApp(
     val contactPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (!isGranted) {
+                val shouldShow = ActivityCompat.shouldShowRequestPermissionRationale(
+                    context as Activity, Manifest.permission.READ_CONTACTS
+                )
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        "Contact permission denied", duration = SnackbarDuration.Short
-                    )
+                    if (!shouldShow) {
+                        val result = snackbarHostState.showSnackbar(
+                            "Permission to make calls is permanently denied. Please enable this in the application settings, open them?",
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Long,
+                            actionLabel = "Open Settings"
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            val intent =
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                            context.startActivity(intent)
+                        }
+                    } else {
+                        snackbarHostState.showSnackbar(
+                            "Contact permission denied", duration = SnackbarDuration.Short
+                        )
+                    }
                 }
             } else {
                 viewModel.loadContacts()
@@ -94,10 +118,29 @@ fun ContactApp(
     val callPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (!isGranted) {
+                val shouldShow = ActivityCompat.shouldShowRequestPermissionRationale(
+                    context as Activity, Manifest.permission.CALL_PHONE
+                )
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        "Call permission denied", duration = SnackbarDuration.Short
-                    )
+                    if (!shouldShow) {
+                        val result = snackbarHostState.showSnackbar(
+                            "Permission to make calls is permanently denied. Please enable this in the application settings, open them?",
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Long,
+                            actionLabel = "Open settings"
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            val intent =
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                            context.startActivity(intent)
+                        }
+                    } else {
+                        snackbarHostState.showSnackbar(
+                            "Call permission denied", duration = SnackbarDuration.Short
+                        )
+                    }
                 }
             }
         }
@@ -118,6 +161,9 @@ fun ContactApp(
             error != null -> ErrorMessage(error!!)
             else -> GroupedContactList(contacts, modifier, onClick = onContactClick)
         }
+        SnackbarHost(
+            hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
